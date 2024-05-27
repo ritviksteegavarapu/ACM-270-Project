@@ -28,7 +28,7 @@ def L96_eq1_xdot(t, X, F = 8, advect=True):
     #         Xdot[k] = ( X[(k+1)%K] - X[k-2] ) * X[k-1] - X[k] + F
     return Xdot
 
-def estimate_log_likelihood(model, particles, y_obs, dt, noise_scale, model_noise, localize = False, localization_matrix = None):
+def estimate_log_likelihood(model, particles, y_obs, dt, noise_scale, model_noise, localize = False, localization_matrix = None, reg = 1e-5):
     nt = y_obs.shape[0]
     log_est = torch.tensor([0.0])
     n_particles = particles.shape[0]
@@ -48,7 +48,7 @@ def estimate_log_likelihood(model, particles, y_obs, dt, noise_scale, model_nois
         # Draw observational noise and correct the particles
         noise = torch.normal(mean = 0.0, std=noise_scale, size=particles.shape)
         increment = y - noise - pred
-        correction = cov@torch.linalg.solve(cov + (noise_scale**2)*torch.eye(K), increment.T)
+        correction = cov@torch.linalg.solve(cov + (noise_scale**2 + reg)*torch.eye(K), increment.T)
         
         particles = pred + correction.T
 
@@ -84,7 +84,7 @@ def train_model(model, X, optimizer, n_epochs, train_length, model_noise, noise_
     return model, loss_hist
 
 
-def filter(model, x_0, Y, n_iter,model_noise, observation_noise, localize = False, localization_matrix = None):
+def filter(model, x_0, Y, n_iter,model_noise, observation_noise, localize = False, localization_matrix = None, reg = 1e-5):
     n_iter = Y.shape[0]
 
     prediction = []
@@ -107,7 +107,7 @@ def filter(model, x_0, Y, n_iter,model_noise, observation_noise, localize = Fals
 
         noise = torch.normal(mean = 0.0, std=observation_noise, size=pred.shape)
         increment = y - noise - pred
-        corr = cov@torch.linalg.solve(cov + (observation_noise**2)*torch.eye(K), increment.T)
+        corr = cov@torch.linalg.solve(cov + (observation_noise**2 + reg)*torch.eye(K), increment.T)
 
         x_0 = pred + corr.T
 
